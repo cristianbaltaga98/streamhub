@@ -1,0 +1,42 @@
+{
+  "name": "streamhub",
+  "version": "0.1.0",
+  "description": "Multi-tracker torrent search and streaming desktop app powered by Prowlarr",
+  "main": "./out/main/index.js",
+  "author": "Cristian Baltaga",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "pack": "electron-vite build && electron-builder --dir",
+    "dist": "electron-vite build && electron-builder"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "webtorrent": "^2.4.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.9",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^31.1.0",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.3"
+  },
+  "build": {
+    "appId": "com.cristian.streamhub",
+    "productName": "StreamHub",
+    "directories": { "output": "release" },
+    "files": ["out/**/*", "package.json"],
+    "mac": { "category": "public.app-category.entertainment", "target": ["dmg"] }
+  }
+}
