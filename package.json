@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "serve": "electron-vite build && tsx src/standalone/index.ts",
+    "server": "tsx src/standalone/index.ts",
     "start": "electron-vite preview",
     "pack": "electron-vite build && electron-builder --dir",
     "dist": "electron-vite build && electron-builder"
@@ -29,6 +31,7 @@
     "electron-vite": "^2.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "tsx": "^4.16.2",
     "typescript": "^5.5.3",
     "vite": "^5.3.3"
   },

@@ -1,6 +1,6 @@
 import type { ParsedRelease } from '@shared/parse'
 
-const BASE = (window as any).streamhub?.apiBase || 'http://127.0.0.1:6868'
+const BASE = (window as any).streamhub?.apiBase || window.location.origin
 
 export interface Meta {
   poster: string | null

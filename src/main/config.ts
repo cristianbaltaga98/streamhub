@@ -1,6 +1,6 @@
-import { app } from 'electron'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
+import { homedir } from 'os'
 
 export interface AppConfig {
   prowlarrUrl: string
@@ -20,8 +20,14 @@ const defaults: AppConfig = {
   backend: 'prowlarr'
 }
 
+function configDir(): string {
+  const dir = process.env.STREAMHUB_CONFIG_DIR || join(homedir(), '.streamhub')
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  return dir
+}
+
 function configPath(): string {
-  return join(app.getPath('userData'), 'streamhub-config.json')
+  return join(configDir(), 'config.json')
 }
 
 export function loadConfig(): AppConfig {

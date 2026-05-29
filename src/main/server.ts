@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
 import { exec } from 'child_process'
+import { existsSync } from 'fs'
+import { join } from 'path'
 import { loadConfig, saveConfig } from './config'
 import { search, categoryIdsFor } from './indexers'
 import { addTorrent, streamFile, torrentProgress } from './torrent'
@@ -8,7 +10,13 @@ import { getMeta } from './metadata'
 
 export const SERVER_PORT = 6868
 
-export function startServer(): Promise<void> {
+export interface ServerOptions {
+  host?: string
+  staticDir?: string
+}
+
+export function startServer(opts: ServerOptions = {}): Promise<void> {
+  const host = opts.host || '127.0.0.1'
   const app = express()
   app.use(cors())
   app.use(express.json())
@@ -97,7 +105,12 @@ export function startServer(): Promise<void> {
     })
   })
 
+  if (opts.staticDir && existsSync(opts.staticDir)) {
+    app.use(express.static(opts.staticDir))
+    app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(join(opts.staticDir!, 'index.html')))
+  }
+
   return new Promise((resolve) => {
-    app.listen(SERVER_PORT, '127.0.0.1', () => resolve())
+    app.listen(SERVER_PORT, host, () => resolve())
   })
 }

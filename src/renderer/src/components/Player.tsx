@@ -47,6 +47,19 @@ export default function Player({ result, onClose }: Props): JSX.Element {
 
   const url = torrent && selected ? api.streamUrl(torrent.infoHash, selected.index) : ''
   const subs = torrent?.files.filter((f) => f.isSubtitle) || []
+  const isElectron = !!(window as any).streamhub
+
+  function openIn(target: 'vlc' | 'infuse', streamUrl: string): void {
+    if (isElectron) {
+      api.openExternal(target, streamUrl)
+      return
+    }
+    const enc = encodeURIComponent(streamUrl)
+    window.location.href =
+      target === 'infuse'
+        ? `infuse://x-callback-url/play?url=${enc}`
+        : `vlc-x-callback://x-callback-url/stream?url=${enc}`
+  }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -79,10 +92,10 @@ export default function Player({ result, onClose }: Props): JSX.Element {
             </div>
 
             <div className="cast-row">
-              <button onClick={() => api.openExternal('vlc', url)}>📺 Open in VLC (AirPlay)</button>
-              <button onClick={() => api.openExternal('infuse', url)}>🎞 Open in Infuse (AirPlay)</button>
+              <button onClick={() => openIn('infuse', url)}>🎞 Open in Infuse (AirPlay)</button>
+              <button onClick={() => openIn('vlc', url)}>📺 Open in VLC (AirPlay)</button>
               <span className="hint">
-                AirPlay to any AirPlay-compatible TV (Apple TV, LG, Samsung, Sony, Roku…): in VLC use Playback ▸ Renderer, or mirror this Mac's screen from Control Center ▸ Screen Mirroring.
+                On iPhone: tap Infuse or VLC, then use the AirPlay button to send it to any AirPlay TV (Apple TV, LG, Samsung, Sony, Roku…). Install Infuse or VLC from the App Store first.
               </span>
             </div>
           </>

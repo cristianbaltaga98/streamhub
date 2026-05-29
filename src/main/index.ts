@@ -33,7 +33,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
-  await startServer()
+  await startServer({ host: '127.0.0.1' })
   createWindow()
 
   app.on('activate', () => {
