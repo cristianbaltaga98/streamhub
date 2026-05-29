@@ -52,5 +52,13 @@ Use the language chips under the search bar to filter.
 - **mp4 / webm** → plays inline.
 - **mkv** (most anime / RU releases, multi-track subs) → Chromium can't decode it, so use **Open in VLC** or **Open in Infuse** — both stream the same local URL and cast to Apple TV via AirPlay. Or mirror the whole Mac screen from Control Center.
 
+## Troubleshooting
+
+**Search returns nothing / "SSL connection could not be established":** Your DNS is blocking the tracker site (e.g. Cisco Umbrella on a corporate Mac, or UK ISP site-blocks resolve torrent domains to a block page). The compose file pins the containers to Cloudflare/Google DNS (`1.1.1.1`, `8.8.8.8`) to bypass this. If it still fails, the indexer may be in a failure cooldown — wait ~5 min or restart: `docker compose restart`.
+
+**Player shows "0 peers" / streams never start / VLC "can't open":** Your network is blocking BitTorrent (UDP trackers + DHT). This is typical of **corporate VPNs** and locked-down Wi-Fi. Disconnect the work VPN (or use a P2P-friendly consumer VPN). The player's "N peers · X% buffered" line confirms when peers connect.
+
+The catch on corporate machines: the VPN may be needed to bypass DNS site-blocks for *search*, but it blocks *streaming* (UDP). Best combo: clean container DNS (already set) for search + VPN **off** (or a consumer VPN) for streaming.
+
 ## Legal note
 StreamHub is a search/playback frontend. It ships **no** indexers or content; you supply your own Prowlarr instance and trackers, and are responsible for what you access. RuTracker requires your own account.
