@@ -10,7 +10,8 @@ export default function Player({ result, onClose }: Props): JSX.Element {
   const [torrent, setTorrent] = useState<AddedTorrent | null>(null)
   const [selected, setSelected] = useState<TorrentFileInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [status, setStatus] = useState('Fetching torrent metadata…')
+  const [status, setStatus] = useState('Connecting to peers…')
+  const [progress, setProgress] = useState<{ numPeers: number; progress: number } | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -29,6 +30,21 @@ export default function Player({ result, onClose }: Props): JSX.Element {
     }
   }, [result])
 
+  useEffect(() => {
+    if (!torrent) return
+    let alive = true
+    const tick = async (): Promise<void> => {
+      const p = await api.getProgress(torrent.infoHash)
+      if (alive && p.found) setProgress({ numPeers: p.numPeers, progress: p.progress })
+    }
+    const id = setInterval(tick, 1500)
+    tick()
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [torrent])
+
   const url = torrent && selected ? api.streamUrl(torrent.infoHash, selected.index) : ''
   const subs = torrent?.files.filter((f) => f.isSubtitle) || []
 
@@ -42,6 +58,12 @@ export default function Player({ result, onClose }: Props): JSX.Element {
 
         {error && <div className="banner error">{error}</div>}
         {status && !error && <div className="loading-row"><span className="spinner" /> {status}</div>}
+        {torrent && progress && (
+          <div className="progress-row">
+            {progress.numPeers} peer{progress.numPeers === 1 ? '' : 's'} · {Math.round(progress.progress * 100)}% buffered
+            {progress.numPeers === 0 && <span className="seed-bad"> · no peers yet, this torrent may be dead</span>}
+          </div>
+        )}
 
         {selected && url && (
           <>

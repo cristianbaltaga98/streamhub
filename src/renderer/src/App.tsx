@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { api, SearchResult } from './lib/api'
+import { api, SearchResult, Meta } from './lib/api'
 import { matchesLanguageFilter, LangCode } from '@shared/parse'
-import ResultsList from './components/ResultsList'
+import { groupResults, MovieGroup } from './lib/group'
+import MovieCard from './components/MovieCard'
+import SourcesModal from './components/SourcesModal'
 import Player from './components/Player'
 import Settings from './components/Settings'
 
@@ -30,15 +32,19 @@ export default function App(): JSX.Element {
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedMovie, setSelectedMovie] = useState<{ group: MovieGroup; meta: Meta | null } | null>(null)
   const [playing, setPlaying] = useState<SearchResult | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [configured, setConfigured] = useState(true)
 
   useEffect(() => {
-    api.getConfig().then((c) => {
-      if (c.backend === 'jackett') setConfigured(!!c.jackettApiKey)
-      else setConfigured(!!c.prowlarrApiKey)
-    }).catch(() => setConfigured(false))
+    api
+      .getConfig()
+      .then((c) => {
+        if (c.backend === 'jackett') setConfigured(!!c.jackettApiKey)
+        else setConfigured(!!c.prowlarrApiKey)
+      })
+      .catch(() => setConfigured(false))
   }, [showSettings])
 
   async function runSearch(e?: React.FormEvent): Promise<void> {
@@ -64,25 +70,19 @@ export default function App(): JSX.Element {
     setQualityFilter((prev) => (prev.includes(q) ? prev.filter((c) => c !== q) : [...prev, q]))
   }
 
-  const filtered = useMemo(
-    () =>
-      results
-        .filter((r) => matchesLanguageFilter(r.parsed, langFilter))
-        .filter((r) => !qualityFilter.length || !r.parsed.quality || qualityFilter.includes(r.parsed.quality)),
-    [results, langFilter, qualityFilter]
-  )
+  const groups = useMemo(() => {
+    const filtered = results
+      .filter((r) => matchesLanguageFilter(r.parsed, langFilter))
+      .filter((r) => !qualityFilter.length || !r.parsed.quality || qualityFilter.includes(r.parsed.quality))
+    return groupResults(filtered)
+  }, [results, langFilter, qualityFilter])
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">🎬 StreamHub</div>
         <form className="searchbar" onSubmit={runSearch}>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search every tracker at once…"
-            autoFocus
-          />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search every tracker at once…" autoFocus />
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
             {CATEGORIES.map((c) => (
               <option key={c.id} value={c.id}>{c.label}</option>
@@ -94,26 +94,15 @@ export default function App(): JSX.Element {
       </header>
 
       <div className="langfilter">
-        <span>Language / subs:</span>
+        <span>Language:</span>
         {LANGS.map((l) => (
-          <button
-            key={l.code}
-            className={langFilter.includes(l.code) ? 'chip active' : 'chip'}
-            onClick={() => toggleLang(l.code)}
-          >
+          <button key={l.code} className={langFilter.includes(l.code) ? 'chip active' : 'chip'} onClick={() => toggleLang(l.code)}>
             {l.label}
           </button>
         ))}
-        {langFilter.length > 0 && (
-          <button className="chip clear" onClick={() => setLangFilter([])}>Clear</button>
-        )}
         <span className="filter-sep">Quality:</span>
         {QUALITIES.map((q) => (
-          <button
-            key={q}
-            className={qualityFilter.includes(q) ? 'chip active' : 'chip'}
-            onClick={() => toggleQuality(q)}
-          >
+          <button key={q} className={qualityFilter.includes(q) ? 'chip active' : 'chip'} onClick={() => toggleQuality(q)}>
             {q}
           </button>
         ))}
@@ -126,12 +115,25 @@ export default function App(): JSX.Element {
           </div>
         )}
         {error && <div className="banner error">{error}</div>}
-        {!loading && !error && results.length === 0 && (
-          <div className="empty">Search a movie, show, or anime title to begin.</div>
-        )}
-        <ResultsList results={filtered} onPlay={setPlaying} />
+        {loading && <div className="empty"><span className="spinner" /> Searching trackers…</div>}
+        {!loading && !error && results.length === 0 && <div className="empty">Search a movie, show, or anime title to begin.</div>}
+        {!loading && results.length > 0 && groups.length === 0 && <div className="empty">No results match your filters.</div>}
+
+        <div className="grid">
+          {groups.map((g) => (
+            <MovieCard key={g.key} group={g} onOpen={(group, meta) => setSelectedMovie({ group, meta })} />
+          ))}
+        </div>
       </main>
 
+      {selectedMovie && (
+        <SourcesModal
+          group={selectedMovie.group}
+          meta={selectedMovie.meta}
+          onClose={() => setSelectedMovie(null)}
+          onPlay={(r) => setPlaying(r)}
+        />
+      )}
       {playing && <Player result={playing} onClose={() => setPlaying(null)} />}
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
     </div>

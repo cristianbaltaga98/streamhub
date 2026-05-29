@@ -3,8 +3,8 @@ import cors from 'cors'
 import { exec } from 'child_process'
 import { loadConfig, saveConfig } from './config'
 import { search, categoryIdsFor } from './indexers'
-import { addTorrent, streamFile } from './torrent'
-import { getPoster } from './metadata'
+import { addTorrent, streamFile, torrentProgress } from './torrent'
+import { getMeta } from './metadata'
 
 export const SERVER_PORT = 6868
 
@@ -47,11 +47,13 @@ export function startServer(): Promise<void> {
     }
   })
 
-  app.get('/api/poster', async (req, res) => {
+  app.get('/api/meta', async (req, res) => {
     try {
       const title = String(req.query.title || '')
+      const year = req.query.year ? String(req.query.year) : undefined
+      const type = req.query.type === 'tv' ? 'tv' : req.query.type === 'movie' ? 'movie' : undefined
       if (!title) return res.json({ poster: null })
-      res.json({ poster: await getPoster(loadConfig(), title) })
+      res.json(await getMeta(loadConfig(), title, year, type))
     } catch {
       res.json({ poster: null })
     }
@@ -66,6 +68,10 @@ export function startServer(): Promise<void> {
     } catch (e: any) {
       res.status(500).json({ error: e.message })
     }
+  })
+
+  app.get('/api/progress/:infoHash', async (req, res) => {
+    res.json(await torrentProgress(req.params.infoHash))
   })
 
   app.get('/api/stream/:infoHash/:fileIndex', async (req, res) => {

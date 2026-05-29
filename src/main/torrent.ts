@@ -2,6 +2,21 @@ import type { Request, Response } from 'express'
 
 let clientPromise: Promise<any> | null = null
 
+const TRACKERS = [
+  'udp://tracker.opentrackr.org:1337/announce',
+  'udp://open.demonii.com:1337/announce',
+  'udp://open.stealth.si:80/announce',
+  'udp://tracker.torrent.eu.org:451/announce',
+  'udp://tracker.theoks.net:6969/announce',
+  'udp://tracker.qu.ax:6969/announce',
+  'udp://tracker.dler.org:6969/announce',
+  'udp://exodus.desync.com:6969/announce',
+  'udp://tracker.publictracker.xyz:6969/announce',
+  'udp://tracker-udp.gbitt.info:80/announce',
+  'https://tracker.zhuqiy.com:443/announce',
+  'http://www.torrentsnipe.info:2701/announce'
+]
+
 async function getClient(): Promise<any> {
   if (!clientPromise) {
     clientPromise = import('webtorrent').then((m) => {
@@ -32,32 +47,45 @@ export interface AddedTorrent {
   files: TorrentFileInfo[]
 }
 
+function withTrackers(source: string): string {
+  if (source.startsWith('magnet:')) {
+    const extra = TRACKERS.map((t) => `&tr=${encodeURIComponent(t)}`).join('')
+    return source + extra
+  }
+  return source
+}
+
 export async function addTorrent(source: string): Promise<AddedTorrent> {
   const client = await getClient()
 
   const existing = (await client.get(source)) || client.torrents.find((t: any) => source.includes(t.infoHash))
-  const torrent = existing || (await new Promise<any>((resolve, reject) => {
-    const to = setTimeout(() => reject(new Error('Timed out fetching torrent metadata (no seeders?)')), 45000)
-    try {
-      client.add(source, (t: any) => {
+  const torrent =
+    existing ||
+    (await new Promise<any>((resolve, reject) => {
+      const to = setTimeout(() => reject(new Error('Could not find peers for this torrent (likely too few seeders).')), 40000)
+      try {
+        client.add(withTrackers(source), { announce: TRACKERS }, (t: any) => {
+          clearTimeout(to)
+          resolve(t)
+        })
+      } catch (e) {
         clearTimeout(to)
-        resolve(t)
-      })
-    } catch (e) {
-      clearTimeout(to)
-      reject(e)
-    }
-  }))
+        reject(e)
+      }
+    }))
 
   if (!torrent.files || !torrent.files.length) {
     await new Promise<void>((resolve, reject) => {
-      const to = setTimeout(() => reject(new Error('Timed out waiting for torrent metadata')), 45000)
+      const to = setTimeout(() => reject(new Error('Timed out waiting for torrent metadata.')), 40000)
       torrent.once('metadata', () => {
         clearTimeout(to)
         resolve()
       })
     })
   }
+
+  torrent.deselect(0, torrent.pieces.length - 1, false)
+  torrent.files.forEach((f: any) => f.deselect())
 
   return {
     infoHash: torrent.infoHash,
@@ -74,6 +102,19 @@ export async function addTorrent(source: string): Promise<AddedTorrent> {
   }
 }
 
+export async function torrentProgress(infoHash: string): Promise<any> {
+  const client = await getClient()
+  const torrent = client.get(infoHash) || client.torrents.find((t: any) => t.infoHash === infoHash)
+  if (!torrent) return { found: false }
+  return {
+    found: true,
+    numPeers: torrent.numPeers,
+    progress: torrent.progress,
+    downloadSpeed: torrent.downloadSpeed,
+    ready: torrent.ready
+  }
+}
+
 export async function streamFile(infoHash: string, fileIndex: number, req: Request, res: Response): Promise<void> {
   const client = await getClient()
   const torrent = client.get(infoHash) || client.torrents.find((t: any) => t.infoHash === infoHash)
@@ -86,6 +127,7 @@ export async function streamFile(infoHash: string, fileIndex: number, req: Reque
     res.status(404).end('File not found')
     return
   }
+  file.select()
 
   const total = file.length
   const range = req.headers.range

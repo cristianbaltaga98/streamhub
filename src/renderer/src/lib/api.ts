@@ -2,7 +2,17 @@ import type { ParsedRelease } from '@shared/parse'
 
 const BASE = (window as any).streamhub?.apiBase || 'http://127.0.0.1:6868'
 
-const posterCache = new Map<string, string | null>()
+export interface Meta {
+  poster: string | null
+  backdrop: string | null
+  title: string | null
+  year: string | null
+  rating: number | null
+  overview: string | null
+}
+
+const EMPTY_META: Meta = { poster: null, backdrop: null, title: null, year: null, rating: null, overview: null }
+const metaCache = new Map<string, Meta>()
 
 export interface SearchResult {
   title: string
@@ -72,15 +82,25 @@ export const api = {
     })
   },
 
-  async getPoster(title: string): Promise<string | null> {
-    if (posterCache.has(title)) return posterCache.get(title)!
+  async getMeta(title: string, year: string | null, type: string): Promise<Meta> {
+    const k = `${title}|${year}|${type}`
+    if (metaCache.has(k)) return metaCache.get(k)!
     try {
-      const res = await fetch(`${BASE}/api/poster?title=${encodeURIComponent(title)}`)
+      const q = `title=${encodeURIComponent(title)}&type=${type}${year ? `&year=${year}` : ''}`
+      const res = await fetch(`${BASE}/api/meta?${q}`)
       const data = await res.json()
-      posterCache.set(title, data.poster)
-      return data.poster
+      metaCache.set(k, data)
+      return data
     } catch {
-      return null
+      return EMPTY_META
+    }
+  },
+
+  async getProgress(infoHash: string): Promise<any> {
+    try {
+      return await (await fetch(`${BASE}/api/progress/${infoHash}`)).json()
+    } catch {
+      return { found: false }
     }
   },
 

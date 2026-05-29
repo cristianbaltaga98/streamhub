@@ -120,15 +120,29 @@ export function parseTitle(rawTitle: string): ParsedRelease {
   }
 }
 
-export function cleanQuery(rawTitle: string): { query: string; year: string | null } {
-  let s = (rawTitle || '').replace(/[._]/g, ' ')
+export interface CleanedTitle {
+  query: string
+  year: string | null
+  type: 'movie' | 'tv'
+  key: string
+}
+
+const STOP = /\b((19|20)\d{2}|S\d{1,2}(E\d{1,3})?|Season|Complete|2160p|1080p|720p|480p|web[\s.-]?dl|webrip|bluray|bdrip|brrip|bdremux|remux|hdtv|dvdrip|x264|x265|h\.?26[45]|hevc|avc|aac|ac3|dts|ddp|dd5|10bit|multi|dual|repack|proper|extended|unrated|imax)\b/i
+
+export function cleanQuery(rawTitle: string): CleanedTitle {
+  let s = (rawTitle || '').replace(/[._]/g, ' ').replace(/[\[\(].*?[\]\)]/g, ' ')
   const yearMatch = s.match(/\b(19|20)\d{2}\b/)
   const year = yearMatch ? yearMatch[0] : null
-  const cut = s.search(
-    /\b(19|20)\d{2}\b|\bS\d{1,2}\b|\bSeason\b|\b\d{3,4}p\b|\b(2160p|1080p|720p|480p)\b|\b(web-?dl|webrip|bluray|bdrip|hdtv|dvdrip|x264|x265|hevc|remux)\b/i
-  )
+  const isTv = /\bS\d{1,2}(E\d{1,3})?\b|\bSeason\b|\bComplete\b/i.test(s)
+  const cut = s.search(STOP)
   if (cut > 0) s = s.slice(0, cut)
-  return { query: s.replace(/[\[\(].*?[\]\)]/g, '').trim() || rawTitle, year }
+  const query = s.replace(/\s+/g, ' ').trim() || rawTitle
+  return {
+    query,
+    year,
+    type: isTv ? 'tv' : 'movie',
+    key: `${query.toLowerCase()}|${isTv ? 'tv' : year || ''}`
+  }
 }
 
 export function matchesLanguageFilter(parsed: ParsedRelease, filter: LangCode[]): boolean {
