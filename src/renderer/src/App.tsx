@@ -20,10 +20,13 @@ const LANGS: { code: LangCode; label: string }[] = [
   { code: 'MULTI', label: 'Multi' }
 ]
 
+const QUALITIES = ['720p', '1080p', '2160p']
+
 export default function App(): JSX.Element {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('all')
   const [langFilter, setLangFilter] = useState<LangCode[]>([])
+  const [qualityFilter, setQualityFilter] = useState<string[]>(['720p', '1080p'])
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,9 +60,16 @@ export default function App(): JSX.Element {
     setLangFilter((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]))
   }
 
+  function toggleQuality(q: string): void {
+    setQualityFilter((prev) => (prev.includes(q) ? prev.filter((c) => c !== q) : [...prev, q]))
+  }
+
   const filtered = useMemo(
-    () => results.filter((r) => matchesLanguageFilter(r.parsed, langFilter)),
-    [results, langFilter]
+    () =>
+      results
+        .filter((r) => matchesLanguageFilter(r.parsed, langFilter))
+        .filter((r) => !qualityFilter.length || !r.parsed.quality || qualityFilter.includes(r.parsed.quality)),
+    [results, langFilter, qualityFilter]
   )
 
   return (
@@ -97,6 +107,16 @@ export default function App(): JSX.Element {
         {langFilter.length > 0 && (
           <button className="chip clear" onClick={() => setLangFilter([])}>Clear</button>
         )}
+        <span className="filter-sep">Quality:</span>
+        {QUALITIES.map((q) => (
+          <button
+            key={q}
+            className={qualityFilter.includes(q) ? 'chip active' : 'chip'}
+            onClick={() => toggleQuality(q)}
+          >
+            {q}
+          </button>
+        ))}
       </div>
 
       <main className="content">

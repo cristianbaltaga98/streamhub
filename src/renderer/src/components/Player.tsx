@@ -60,7 +60,7 @@ export default function Player({ result, onClose }: Props): JSX.Element {
               <button onClick={() => api.openExternal('vlc', url)}>📺 Open in VLC (AirPlay)</button>
               <button onClick={() => api.openExternal('infuse', url)}>🎞 Open in Infuse (AirPlay)</button>
               <span className="hint">
-                For Apple TV: VLC → Playback ▸ Renderer / AirPlay, or mirror this Mac's screen from Control Center.
+                AirPlay to any AirPlay-compatible TV (Apple TV, LG, Samsung, Sony, Roku…): in VLC use Playback ▸ Renderer, or mirror this Mac's screen from Control Center ▸ Screen Mirroring.
               </span>
             </div>
           </>
