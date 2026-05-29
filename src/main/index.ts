@@ -3,6 +3,9 @@ import { join } from 'path'
 import { startServer } from './server'
 import { destroyClient } from './torrent'
 
+process.on('uncaughtException', (e) => console.error('[uncaught]', e?.message || e))
+process.on('unhandledRejection', (e: any) => console.error('[unhandled]', e?.message || e))
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,

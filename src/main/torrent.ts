@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 
 let clientPromise: Promise<any> | null = null
+const sourceToHash = new Map<string, string>()
 
 const TRACKERS = [
   'udp://tracker.opentrackr.org:1337/announce',
@@ -21,10 +22,22 @@ async function getClient(): Promise<any> {
   if (!clientPromise) {
     clientPromise = import('webtorrent').then((m) => {
       const WebTorrent = (m as any).default || m
-      return new WebTorrent()
+      const client = new WebTorrent()
+      client.on('error', (e: any) => console.error('[webtorrent]', e?.message || e))
+      return client
     })
   }
   return clientPromise
+}
+
+async function infoHashOf(resolved: string | Buffer): Promise<string | null> {
+  try {
+    const parseTorrent = (await import('parse-torrent')).default as any
+    const parsed = await parseTorrent(resolved)
+    return parsed?.infoHash || null
+  } catch {
+    return null
+  }
 }
 
 const STREAMABLE = /\.(mp4|m4v|webm|ogg|ogv)$/i
@@ -47,26 +60,51 @@ export interface AddedTorrent {
   files: TorrentFileInfo[]
 }
 
-function withTrackers(source: string): string {
-  if (source.startsWith('magnet:')) {
-    const extra = TRACKERS.map((t) => `&tr=${encodeURIComponent(t)}`).join('')
-    return source + extra
+function withTrackers(magnet: string): string {
+  const extra = TRACKERS.map((t) => `&tr=${encodeURIComponent(t)}`).join('')
+  return magnet + extra
+}
+
+async function resolveSource(source: string): Promise<string | Buffer> {
+  if (source.startsWith('magnet:')) return withTrackers(source)
+
+  let url = source
+  for (let hop = 0; hop < 5; hop++) {
+    const res = await fetch(url, { redirect: 'manual' })
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get('location') || ''
+      if (loc.startsWith('magnet:')) return withTrackers(loc)
+      url = new URL(loc, url).toString()
+      continue
+    }
+    if (!res.ok) throw new Error(`Indexer returned ${res.status} for the download link`)
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.slice(0, 20).toString('utf8').startsWith('magnet:')) return withTrackers(buf.toString('utf8').trim())
+    return buf
   }
-  return source
+  throw new Error('Too many redirects resolving the download link')
 }
 
 export async function addTorrent(source: string): Promise<AddedTorrent> {
   const client = await getClient()
 
-  const existing = (await client.get(source)) || client.torrents.find((t: any) => source.includes(t.infoHash))
+  const cachedHash = sourceToHash.get(source)
+  const resolved = await resolveSource(source)
+  const hash = cachedHash || (await infoHashOf(resolved))
+  const existing = hash ? client.torrents.find((t: any) => t.infoHash === hash) : null
+
   const torrent =
     existing ||
     (await new Promise<any>((resolve, reject) => {
-      const to = setTimeout(() => reject(new Error('Could not find peers for this torrent (likely too few seeders).')), 40000)
+      const to = setTimeout(() => reject(new Error('Could not load this torrent (metadata fetch failed).')), 40000)
       try {
-        client.add(withTrackers(source), { announce: TRACKERS }, (t: any) => {
+        const t = client.add(resolved as any, { announce: TRACKERS }, () => {
           clearTimeout(to)
           resolve(t)
+        })
+        t.on('error', (e: any) => {
+          clearTimeout(to)
+          reject(new Error(e?.message || 'Torrent error'))
         })
       } catch (e) {
         clearTimeout(to)
@@ -84,6 +122,7 @@ export async function addTorrent(source: string): Promise<AddedTorrent> {
     })
   }
 
+  sourceToHash.set(source, torrent.infoHash)
   torrent.deselect(0, torrent.pieces.length - 1, false)
   torrent.files.forEach((f: any) => f.deselect())
 
@@ -104,7 +143,7 @@ export async function addTorrent(source: string): Promise<AddedTorrent> {
 
 export async function torrentProgress(infoHash: string): Promise<any> {
   const client = await getClient()
-  const torrent = client.get(infoHash) || client.torrents.find((t: any) => t.infoHash === infoHash)
+  const torrent = client.torrents.find((t: any) => t.infoHash === infoHash)
   if (!torrent) return { found: false }
   return {
     found: true,
@@ -117,7 +156,7 @@ export async function torrentProgress(infoHash: string): Promise<any> {
 
 export async function streamFile(infoHash: string, fileIndex: number, req: Request, res: Response): Promise<void> {
   const client = await getClient()
-  const torrent = client.get(infoHash) || client.torrents.find((t: any) => t.infoHash === infoHash)
+  const torrent = client.torrents.find((t: any) => t.infoHash === infoHash)
   if (!torrent) {
     res.status(404).end('Torrent not active')
     return
