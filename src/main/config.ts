@@ -7,6 +7,7 @@ export interface AppConfig {
   prowlarrApiKey: string
   jackettUrl: string
   jackettApiKey: string
+  tmdbApiKey: string
   backend: 'prowlarr' | 'jackett'
 }
 
@@ -15,6 +16,7 @@ const defaults: AppConfig = {
   prowlarrApiKey: process.env.PROWLARR_API_KEY || '',
   jackettUrl: process.env.JACKETT_URL || 'http://localhost:9117',
   jackettApiKey: process.env.JACKETT_API_KEY || '',
+  tmdbApiKey: process.env.TMDB_API_KEY || '',
   backend: 'prowlarr'
 }
 

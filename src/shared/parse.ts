@@ -95,6 +95,8 @@ export function parseTitle(rawTitle: string): ParsedRelease {
     has(t, [/\bvostfr\b/, /\bbatch\b/, /\b\[anime\]\b/, /\bova\b/, /\bbd\s?box\b/]) ||
     /\bs\d{1,2}\s?-\s?\d{2}\b/i.test(title)
 
+  if (audio.size === 0 && !isAnime) audio.add('EN')
+
   const badges: string[] = []
   audio.forEach((a) => badges.push(`AUD:${a}`))
   subs.forEach((s) => badges.push(`SUB:${s}`))
@@ -116,6 +118,17 @@ export function parseTitle(rawTitle: string): ParsedRelease {
     isAnime,
     badges
   }
+}
+
+export function cleanQuery(rawTitle: string): { query: string; year: string | null } {
+  let s = (rawTitle || '').replace(/[._]/g, ' ')
+  const yearMatch = s.match(/\b(19|20)\d{2}\b/)
+  const year = yearMatch ? yearMatch[0] : null
+  const cut = s.search(
+    /\b(19|20)\d{2}\b|\bS\d{1,2}\b|\bSeason\b|\b\d{3,4}p\b|\b(2160p|1080p|720p|480p)\b|\b(web-?dl|webrip|bluray|bdrip|hdtv|dvdrip|x264|x265|hevc|remux)\b/i
+  )
+  if (cut > 0) s = s.slice(0, cut)
+  return { query: s.replace(/[\[\(].*?[\]\)]/g, '').trim() || rawTitle, year }
 }
 
 export function matchesLanguageFilter(parsed: ParsedRelease, filter: LangCode[]): boolean {

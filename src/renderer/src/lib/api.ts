@@ -2,6 +2,8 @@ import type { ParsedRelease } from '@shared/parse'
 
 const BASE = (window as any).streamhub?.apiBase || 'http://127.0.0.1:6868'
 
+const posterCache = new Map<string, string | null>()
+
 export interface SearchResult {
   title: string
   indexer: string
@@ -68,6 +70,18 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ app: target, url })
     })
+  },
+
+  async getPoster(title: string): Promise<string | null> {
+    if (posterCache.has(title)) return posterCache.get(title)!
+    try {
+      const res = await fetch(`${BASE}/api/poster?title=${encodeURIComponent(title)}`)
+      const data = await res.json()
+      posterCache.set(title, data.poster)
+      return data.poster
+    } catch {
+      return null
+    }
   },
 
   async getConfig(): Promise<any> {

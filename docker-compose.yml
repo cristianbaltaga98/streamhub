@@ -7,7 +7,7 @@ services:
       - PGID=1000
       - TZ=Europe/London
     volumes:
-      - ./prowlarr-config:/config
+      - prowlarr-config:/config
     ports:
       - "9696:9696"
     restart: unless-stopped
@@ -21,3 +21,6 @@ services:
     ports:
       - "8191:8191"
     restart: unless-stopped
+
+volumes:
+  prowlarr-config:

@@ -35,14 +35,29 @@ export interface AddedTorrent {
 export async function addTorrent(source: string): Promise<AddedTorrent> {
   const client = await getClient()
 
-  const existing = client.get(source) || client.torrents.find((t: any) => source.includes(t.infoHash))
+  const existing = (await client.get(source)) || client.torrents.find((t: any) => source.includes(t.infoHash))
   const torrent = existing || (await new Promise<any>((resolve, reject) => {
-    const to = setTimeout(() => reject(new Error('Timed out fetching torrent metadata')), 30000)
-    client.add(source, (t: any) => {
+    const to = setTimeout(() => reject(new Error('Timed out fetching torrent metadata (no seeders?)')), 45000)
+    try {
+      client.add(source, (t: any) => {
+        clearTimeout(to)
+        resolve(t)
+      })
+    } catch (e) {
       clearTimeout(to)
-      resolve(t)
-    })
+      reject(e)
+    }
   }))
+
+  if (!torrent.files || !torrent.files.length) {
+    await new Promise<void>((resolve, reject) => {
+      const to = setTimeout(() => reject(new Error('Timed out waiting for torrent metadata')), 45000)
+      torrent.once('metadata', () => {
+        clearTimeout(to)
+        resolve()
+      })
+    })
+  }
 
   return {
     infoHash: torrent.infoHash,

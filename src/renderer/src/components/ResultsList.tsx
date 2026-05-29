@@ -1,4 +1,5 @@
 import { SearchResult, formatBytes } from '../lib/api'
+import Poster from './Poster'
 
 interface Props {
   results: SearchResult[]
@@ -18,6 +19,7 @@ export default function ResultsList({ results, onPlay }: Props): JSX.Element {
     <table className="results">
       <thead>
         <tr>
+          <th></th>
           <th>Title</th>
           <th>Tags</th>
           <th>Quality</th>
@@ -33,6 +35,7 @@ export default function ResultsList({ results, onPlay }: Props): JSX.Element {
           const canStream = !!(r.magnetUrl || r.downloadUrl)
           return (
             <tr key={`${r.infoHash || r.title}-${i}`}>
+              <td><Poster title={r.title} /></td>
               <td className="title-cell">
                 <span className="title">{r.title}</span>
                 {p.isAnime && <span className="badge anime">ANIME</span>}

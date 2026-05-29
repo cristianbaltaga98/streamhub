@@ -55,6 +55,9 @@ export default function Settings({ onClose }: Props): JSX.Element {
           </>
         )}
 
+        <label>TMDB API Key (for posters — optional)</label>
+        <input value={cfg.tmdbApiKey} onChange={(e) => update('tmdbApiKey', e.target.value)} placeholder="Free key from themoviedb.org/settings/api" />
+
         <div className="settings-actions">
           <button className="primary" onClick={save}>Save</button>
           {saved && <span className="saved">Saved ✓</span>}

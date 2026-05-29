@@ -4,6 +4,7 @@ import { exec } from 'child_process'
 import { loadConfig, saveConfig } from './config'
 import { search, categoryIdsFor } from './indexers'
 import { addTorrent, streamFile } from './torrent'
+import { getPoster } from './metadata'
 
 export const SERVER_PORT = 6868
 
@@ -16,13 +17,19 @@ export function startServer(): Promise<void> {
 
   app.get('/api/config', (_req, res) => {
     const cfg = loadConfig()
-    res.json({ ...cfg, prowlarrApiKey: cfg.prowlarrApiKey ? '********' : '', jackettApiKey: cfg.jackettApiKey ? '********' : '' })
+    res.json({
+      ...cfg,
+      prowlarrApiKey: cfg.prowlarrApiKey ? '********' : '',
+      jackettApiKey: cfg.jackettApiKey ? '********' : '',
+      tmdbApiKey: cfg.tmdbApiKey ? '********' : ''
+    })
   })
 
   app.post('/api/config', (req, res) => {
     const patch = { ...req.body }
     if (patch.prowlarrApiKey === '********') delete patch.prowlarrApiKey
     if (patch.jackettApiKey === '********') delete patch.jackettApiKey
+    if (patch.tmdbApiKey === '********') delete patch.tmdbApiKey
     saveConfig(patch)
     res.json({ ok: true })
   })
@@ -37,6 +44,16 @@ export function startServer(): Promise<void> {
       res.json({ results })
     } catch (e: any) {
       res.status(500).json({ error: e.message })
+    }
+  })
+
+  app.get('/api/poster', async (req, res) => {
+    try {
+      const title = String(req.query.title || '')
+      if (!title) return res.json({ poster: null })
+      res.json({ poster: await getPoster(loadConfig(), title) })
+    } catch {
+      res.json({ poster: null })
     }
   })
 
